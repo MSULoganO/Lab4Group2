@@ -1,25 +1,16 @@
 package edu.msudenver.cs3013.lab4group2
-
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
 import android.location.Location
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AlertDialog
-import androidx.constraintlayout.motion.widget.Debug.getLocation
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.DrawableCompat
 import androidx.fragment.app.Fragment
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -29,9 +20,7 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import edu.msudenver.cs3013.lab4group2.databinding.ActivityMapsBinding
 
@@ -137,7 +126,9 @@ class MapsFragment : Fragment(), OnMapReadyCallback {
     private fun updateMapLocation(location: LatLng) {
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(location, 7f))
     }
-    private fun addMarkerAtLocation(location: LatLng, title: String) {
-        mMap.addMarker(MarkerOptions().title(title).position(location))
-    }
+    private fun addMarkerAtLocation(
+        location: LatLng, title: String, markerIcon: BitmapDescriptor? = null)
+            = mMap.addMarker(MarkerOptions().title(title).position(location).apply {
+        markerIcon?.let { icon(markerIcon) }}
+    )
 }
