@@ -31,7 +31,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import edu.msudenver.cs3013.lab4group2.databinding.ActivityMapsBinding
 
 
-// maps.api KEY
+// testing if removed
 
 
 
