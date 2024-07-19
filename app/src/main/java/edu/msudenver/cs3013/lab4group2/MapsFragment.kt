@@ -1,23 +1,26 @@
 package edu.msudenver.cs3013.lab4group2
 
 import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.location.Location
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AlertDialog
-import androidx.constraintlayout.motion.widget.Debug.getLocation
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
+import androidx.fragment.app.Fragment
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -29,49 +32,68 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 import edu.msudenver.cs3013.lab4group2.databinding.ActivityMapsBinding
+import androidx.fragment.app.activityViewModels
 
 
-// testing if removed
 
 
+class MapsFragment : Fragment(), OnMapReadyCallback {
 
-class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
-    private val vehicleLocation: Button
-        get() = findViewById(R.id.button1)
     private lateinit var mMap: GoogleMap
     private lateinit var binding: ActivityMapsBinding
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
     private var marker: Marker? = null
+    private val locationViewModel : SharedViewModel by activityViewModels()
 
     private val fusedLocationProviderClient by lazy {
-        LocationServices.getFusedLocationProviderClient(this)
+        LocationServices.getFusedLocationProviderClient(requireContext())
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        binding = ActivityMapsBinding.inflate(layoutInflater)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMapsBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        val mapFragment = supportFragmentManager
-            .findFragmentById(R.id.map) as SupportMapFragment
+        val mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
-
-
-        requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-                isGranted ->
-            if (isGranted) {
-                getLocation()
-            } else {
-                showPermissionRationale {
-                    requestPermissionLauncher.launch(ACCESS_FINE_LOCATION)
+        requestPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    getLastLocation()
+                } else {
+                    // if should show rationale, show it
+                    if (shouldShowRequestPermissionRationale(ACCESS_FINE_LOCATION)) {
+                        showPermissionRationale {
+                            requestPermissionLauncher.launch(ACCESS_FINE_LOCATION)
+                        }
+                    }
                 }
             }
-        }
-
-
     }
+
+    @SuppressLint("MissingPermission")
+    private fun getLastLocation() {
+        //fused location last location with addOnFailureListener and addOnCanceledListener listeners added
+        fusedLocationProviderClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { location: Location? ->
+                location?.let {
+                    val currentLocation = LatLng(it.latitude, it.longitude)
+                    updateMapLocation(currentLocation)
+                    addMarkerAtLocation(currentLocation, "Current Location")
+                    //zoom in
+                    mMap.animateCamera(CameraUpdateFactory.zoomTo(15f))
+                }
+            }
+    }
+
 
     /**
      * Manipulates the map once available.
@@ -106,17 +128,17 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
 
     private fun getLocation() {
-        // Log.d("MapsActivity", "getLocation() called.")
+
         fusedLocationProviderClient.lastLocation.addOnSuccessListener {
                 location: Location? ->
             location?.let {
-              //   val userLocation = LatLng(location.latitude, location.longitude)
-              //   updateMapLocation(userLocation)
-              //   addMarkerAtLocation(userLocation, "My Location")
+                   val userLocation = LatLng(location.latitude, location.longitude)
+                   updateMapLocation(userLocation)
+                   addMarkerAtLocation(userLocation, "My Location")
 
-                val Colorado = LatLng(38.0, -105.7)
-                updateMapLocation(Colorado)
-                addMarkerAtLocation(Colorado,"Some Nerd")
+                //val Colorado = LatLng(38.0, -105.7)
+                //updateMapLocation(Colorado)
+                //addMarkerAtLocation(Colorado,"Some Nerd")
             }
         }
 
@@ -134,7 +156,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun getBitmapDescriptorFromVector(@DrawableRes
                                               vectorDrawableResourceId: Int): BitmapDescriptor? {
-        val bitmap = ContextCompat.getDrawable(this,
+        val bitmap = ContextCompat.getDrawable(requireContext(),
             vectorDrawableResourceId)?.let { vectorDrawable ->
             vectorDrawable.setBounds(0, 0,
                 vectorDrawable.intrinsicWidth, vectorDrawable.intrinsicHeight)
@@ -153,30 +175,24 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             .also { bitmap?.recycle() }
     }
 
-//this will move the marker to a spot you click on the map and then press the button
+    //this will move the marker to a spot you click on the map and then press the button
     private fun addOrMoveSelectedPositionMarker(latLng: LatLng) {
-        vehicleLocation.setOnClickListener {
+        view?.findViewById<Button>(R.id.button1)?.setOnClickListener {
             if (marker == null) {
-                marker = addMarkerAtLocation(
-                    latLng, "Vehicle Location",
+                marker = addMarkerAtLocation(latLng, "Vehicle Location",
                     getBitmapDescriptorFromVector(R.drawable.car_location)
                 )
             } else {
-                marker?.apply { position = latLng }
-            }
-            //      if (marker == null) {
-            //         marker = addMarkerAtLocation(latLng, "Vehicle Location",
-            //              getBitmapDescriptorFromVector(R.drawable.car_location)
-            //          )
-            //      } else { marker?.apply { position = latLng } }
+                marker?.apply { position = latLng } }
         }
+        locationViewModel.updateParked(latLng.toString())
     }
 
 
 
     private fun hasLocationPermission() =
 //check if ACCESS_FINE_LOCATION permission is granted
-        ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION) ==
+        ContextCompat.checkSelfPermission(requireContext(), ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
 
 
@@ -184,7 +200,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun showPermissionRationale(
         positiveAction: () -> Unit
     ) {
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(requireContext())
             .setTitle("Location permission")
             .setMessage("We need your permission to find your current position")
             .setPositiveButton(android.R.string.ok) { _, _ ->
